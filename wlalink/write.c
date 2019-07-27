@@ -1039,13 +1039,9 @@ int write_symbol_file(char *outname, unsigned char mode, unsigned char outputAdd
     return FAILED;
 
   strcpy(name, outname);
-  p = name;
-  for (y = 0; y < 255 && *p != '.' && *p != 0; y++, p++);
-  *(p++) = '.';
-  *(p++) = 's';
-  *(p++) = 'y';
-  *(p++) = 'm';
-  *p = 0;
+  p = strrchr(name, '.');
+  if(p) *p = 0;
+  strcat(name, ".sym");
 
   f = fopen(name, "wb");
   if (f == NULL) {
