@@ -206,6 +206,23 @@ __far /* put the following big table in the FAR data section */
     }                                                                  \
   } while (0)
 
+int getZeroPageSlot()
+{
+#if defined(MCS6502) || defined(MCS6510) || defined(W65816) || defined(WDC65C02) || defined(HUC6280)
+#ifdef HUC6280
+ #define ZPADDR 0x2000
+#else
+ #define ZPADDR 0
+#endif
+  int i;
+  for(i = 0; i < slots_amount; i++) {
+    if((slots[i].size == 256)
+    &&(slots[i].address == ZPADDR))
+      return i;
+  }
+#endif
+  return -1;
+}
 
 int strcaselesscmp(char *s1, char *s2) {
 
@@ -3634,13 +3651,22 @@ int directive_ramsection(void) {
 
     skip_next_token();
 
+      if(compare_next_token("Z") == SUCCEEDED) {
+        d = getZeroPageSlot();
+        if(d < 0) {
+           print_error("no zero page slot\n", ERROR_DIR);
+          return FAILED; }
+        skip_next_token();  
+      
+      } else {
+
     q = input_number();
     if (q == FAILED)
       return FAILED;
     if (q != SUCCEEDED || d > 255 || d < 0) {
       print_error(".RAMSECTION needs an unsigned 8-bit value as the SLOT number.\n", ERROR_DIR);
       return FAILED;
-    }
+    }}
 
     if (slots[d].size == 0) {
       sprintf(emsg, "There is no SLOT number %d.\n", d);
@@ -7336,6 +7362,14 @@ int parse_directive(void) {
 
   if (strcaselesscmp(cp, "STRUCT") == 0)
     return directive_struct();
+
+  /* ZEROPAGE */
+  if (strcmp(cp, "ZP") == 0) {
+    i -= 17;
+    sprintf(buffer+i, "\"ZP_%03d\" SLOT Z", section_id);
+    buffer[i+16] = ' ';
+    return directive_ramsection();
+  }
 
   /* RAMSECTION */
 
