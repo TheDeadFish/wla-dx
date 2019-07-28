@@ -67,7 +67,7 @@ int compare_next_token(char *token) {
 
   /* skip white space */
   ii = i;
-  for (e = buffer[ii]; e == ' ' || e == ',' || e == 0x0A; e = buffer[++ii])
+  for (e = buffer[ii]; e == ' ' || e == ',' || isNewLn(e); e = buffer[++ii])
     ;
 
   /* MACRO mode? */
@@ -91,7 +91,7 @@ int compare_next_token(char *token) {
     ii = macro_runtime_current->argument_data[d - 1]->start;
 
     e = buffer[ii];
-    for (t = 0; t < length && e != ' ' && e != ',' && e != 0x0A; ) {
+    for (t = 0; t < length && e != ' ' && e != ',' && !isNewLn(e); ) {
       if (toupper((int)token[t]) != toupper((int)e))
 	return FAILED;
       t++;
@@ -100,7 +100,7 @@ int compare_next_token(char *token) {
   }
   /* not in MACRO mode */
   else {
-    for (t = 0; t < length && e != ' ' && e != ',' && e != 0x0A; ) {
+    for (t = 0; t < length && e != ' ' && e != ',' && !isNewLn(e); ) {
       if (toupper((int)token[t]) != toupper((int)e))
 	return FAILED;
       t++;
@@ -125,14 +125,14 @@ int input_next_string(void) {
   for (e = buffer[i++]; e == ' ' || e == ','; e = buffer[i++])
     ;
 
-  if (e == 0x0A)
+  if (isNewLn(e))
     return INPUT_NUMBER_EOL;
 
   /* last choice is a label */
   tmp[0] = e;
   for (k = 1; k < MAX_NAME_LENGTH; k++) {
     e = buffer[i++];
-    if (e == 0x0A || e == ',') {
+    if (isNewLn(e) || e == ',') {
       i--;
       break;
     }
@@ -177,13 +177,13 @@ int input_number(void) {
   for (e = buffer[i++]; e == ' ' || e == ','; e = buffer[i++])
     ;
 
-  if (e == 0x0A)
+  if (isNewLn(e))
     return INPUT_NUMBER_EOL;
 
   /* check the type of the expression */
   p = i;
   ee = e;
-  while (ee != 0x0A) {
+  while (!isNewLn(ee)) {
     /* string / symbol -> no calculating */
     if (ee == '"' || ee == ',' || (ee == '=' && buffer[p] == '=') || (ee == '!' && buffer[p] == '='))
       break;
@@ -541,7 +541,7 @@ int input_number(void) {
 	break;
       }
       
-      if (e == 0 || e == 0x0A) {
+      if (e == 0 || isNewLn(e)) {
 	print_error("String wasn't terminated properly.\n", ERROR_NUM);
 	return FAILED;
       }
@@ -576,7 +576,7 @@ int input_number(void) {
   label[0] = e;
   for (k = 1; k < MAX_NAME_LENGTH; k++) {
     e = buffer[i++];
-    if (e == 0x0A || e == ')' || e == ',' || e == ']') {
+    if (isNewLn(e) || e == ')' || e == ',' || e == ']') {
       i--;
       break;
     }
@@ -752,7 +752,7 @@ void skip_whitespace(void) {
       newline_beginning = OFF;
       continue;
     }
-    if (buffer[i] == 0xA) {
+    if (isNewLn(buffer[i])) {
       i++;
       next_line();
       continue;
@@ -804,7 +804,7 @@ int get_next_token(void) {
 
   /* "string"? */
   if (buffer[i] == '"') {
-    for (ss = 0, i++; buffer[i] != 0xA && buffer[i] != '"'; ) {
+    for (ss = 0, i++; !isNewLn(buffer[i]) && buffer[i] != '"'; ) {
       if (buffer[i] == '\\' && buffer[i + 1] == '"') {
 	tmp[ss++] = '"';
 	i += 2;
@@ -813,7 +813,7 @@ int get_next_token(void) {
 	tmp[ss++] = buffer[i++];
     }
 
-    if (buffer[i] == 0xA) {
+    if (isNewLn(buffer[i])) {
       print_error("GET_NEXT_TOKEN: String wasn't terminated properly.\n", ERROR_NONE);
       return FAILED;
     }
@@ -833,7 +833,7 @@ int get_next_token(void) {
   if (buffer[i] == '.') {
     tmp[0] = '.';
     i++;
-    for (ss = 1; buffer[i] != 0x0A && buffer[i] != ' ' && ss < MAX_NAME_LENGTH; ) {
+    for (ss = 1; !isNewLn(buffer[i]) && buffer[i] != ' ' && ss < MAX_NAME_LENGTH; ) {
       tmp[ss] = buffer[i];
       cp[ss - 1] = toupper((int)buffer[i]);
       i++;
@@ -842,11 +842,11 @@ int get_next_token(void) {
     cp[ss - 1] = 0;
   }
   else if (buffer[i] == '=' || buffer[i] == '>' || buffer[i] == '<' || buffer[i] == '!') {
-    for (ss = 0; buffer[i] != 0xA && (buffer[i] == '=' || buffer[i] == '!' || buffer[i] == '<' || buffer[i] == '>')
+    for (ss = 0; !isNewLn(buffer[i]) && (buffer[i] == '=' || buffer[i] == '!' || buffer[i] == '<' || buffer[i] == '>')
 	   && ss < MAX_NAME_LENGTH; tmp[ss++] = buffer[i++]);
   }
   else {
-    for (ss = 0; buffer[i] != 0xA && buffer[i] != ',' && buffer[i] != ' ' && ss < MAX_NAME_LENGTH; ) {
+    for (ss = 0; !isNewLn(buffer[i]) && buffer[i] != ',' && buffer[i] != ' ' && ss < MAX_NAME_LENGTH; ) {
       tmp[ss] = buffer[i];
       ss++;
       i++;
@@ -878,13 +878,13 @@ int skip_next_token(void) {
   for (; buffer[i] == ' ' || buffer[i] == ','; i++)
     ;
 
-  if (buffer[i] == 0x0A)
+  if (isNewLn(buffer[i]))
     return FAILED;
 
   if (buffer[i] == '"') {
-    for (i++; buffer[i] != 0x0A && buffer[i] != '"'; i++)
+    for (i++; !isNewLn(buffer[i]) && buffer[i] != '"'; i++)
       ;
-    if (buffer[i] == 0x0A) {
+    if (isNewLn(buffer[i])) {
       print_error("SKIP_NEXT_TOKEN: String wasn't terminated properly.\n", ERROR_NONE);
       return FAILED;
     }
@@ -893,11 +893,11 @@ int skip_next_token(void) {
     return SUCCEEDED;
   }
   else if (buffer[i] == '=' || buffer[i] == '>' || buffer[i] == '<' || buffer[i] == '!') {
-    for (; buffer[i] != 0xA && (buffer[i] == '=' || buffer[i] == '!' || buffer[i] == '<' || buffer[i] == '>'); i++)
+    for (; !isNewLn(buffer[i]) && (buffer[i] == '=' || buffer[i] == '!' || buffer[i] == '<' || buffer[i] == '>'); i++)
       ;
   }
   else {
-    for (; buffer[i] != 0x0A && buffer[i] != ' ' && buffer[i] != ','; i++)
+    for (; !isNewLn(buffer[i]) && buffer[i] != ' ' && buffer[i] != ','; i++)
       ;
   }
   
@@ -971,7 +971,7 @@ int _expand_macro_arguments_one_pass(char *in, int *expands, int *move_up) {
 	d = macro_runtime_current->argument_data[d - 1]->start;
 
 	for (; k < MAX_NAME_LENGTH; d++, k++) {
-	  if (buffer[d] == 0 || buffer[d] == ' ' || buffer[d] == 0x0A || buffer[d] == ',')
+	  if (buffer[d] == 0 || buffer[d] == ' ' || isNewLn(buffer[d]) || buffer[d] == ',')
 	    break;
 	  expanded_macro_string[k] = buffer[d];
 	}

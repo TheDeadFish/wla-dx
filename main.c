@@ -99,6 +99,7 @@ extern int include_in_tmp_size, tmp_a_size, *banks, *bankaddress;
 int output_format = OUTPUT_NONE, verbose_mode = OFF, test_mode = OFF;
 int extra_definitions = OFF, commandline_parsing = ON, makefile_rules = NO;
 int listfile_data = NO, quiet = NO, use_incdir = NO, little_endian = YES;
+int c_style_parse;
 
 char *final_name = NULL, *asm_name = NULL, ext_incdir[MAX_NAME_LENGTH + 2];
 
@@ -335,6 +336,10 @@ int parse_flags(char **flags, int flagc) {
     }
     else if (!strcmp(flags[count], "-x")) {
       extra_definitions = ON;
+      continue;
+    }
+    else if (!strcmp(flags[count], "-cp")) {
+      c_style_parse = 1;
       continue;
     }
     else {

@@ -558,6 +558,7 @@ int print_file_names(void) {
   return SUCCEEDED;
 }
 
+extern int c_style_parse;
 
 /* the mystery preprocessor - touch it and prepare for trouble ;) the preprocessor
    removes as much white space as possible from the source file. this is to make
@@ -584,7 +585,9 @@ int preprocess_file(char *input, char *input_end, char *out_buffer, int *out_siz
   while (input < input_end) {
     switch (*input) {
     case ';':
+			if(c_style_parse) goto NEW_LINE;
       /* clear a commented line */
+			COMMENT_LINE:
       input++;
       for ( ; input < input_end && *input != 0x0A && *input != 0x0D; input++)
 	;
@@ -611,6 +614,7 @@ int preprocess_file(char *input, char *input_end, char *out_buffer, int *out_siz
       }
       break;
     case '/':
+			if (c_style_parse && *(input + 1) == '/') goto COMMENT_LINE;
       if (*(input + 1) == '*') {
 	/* remove an ANSI C -style block comment */
 	got_chars_on_line = 0;
@@ -666,14 +670,13 @@ int preprocess_file(char *input, char *input_end, char *out_buffer, int *out_siz
       if (z == 1)
 	z = 2;
       break;
-    case 0x0A:
+    case 0x0A: NEW_LINE:
       /* take away white space from the end of the line */
-      input++;
       output--;
       for ( ; output > out_buffer && *output == ' '; output--)
 	;
       output++;
-      *output = 0x0A;
+      *output = *input; input++;
       output++;
       /* moving on to a new line */
       got_chars_on_line = 0;

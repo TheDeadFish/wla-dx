@@ -125,7 +125,7 @@ int stack_calculate(char *in, int *value) {
   }
   
   /* slice the data into infix format */
-  while (*in != 0xA) {
+  while (!isNewLn(*in)) {
     /* init the stack item */
     si[q].type = 0x123456;
     si[q].sign = 0x123456;
@@ -316,7 +316,7 @@ int stack_calculate(char *in, int *value) {
 	  d += e - '0';
 	else if (e == ' ' || e == ')' || e == '|' || e == '&' || e == '+' || e == '-' || e == '*' ||
 		 e == '/' || e == ',' || e == '^' || e == '<' || e == '>' || e == '#' || e == '~' ||
-		 e == ']' || e == '.' || e == 0xA)
+		 e == ']' || e == '.' || isNewLn(e))
 	  break;
 	else {
 	  if (input_number_error_msg == YES) {
@@ -367,7 +367,7 @@ int stack_calculate(char *in, int *value) {
 	  d += e - 'a' + 10;
 	else if (e == ' ' || e == ')' || e == '|' || e == '&' || e == '+' || e == '-' ||
 		 e == '*' || e == '/' || e == ',' || e == '^' || e == '<' || e == '>' ||
-		 e == '#' || e == '~' || e == ']' || e == '.' || e == 0xA)
+		 e == '#' || e == '~' || e == ']' || e == '.' || isNewLn(e))
 	  break;
 	else {
 	  if (input_number_error_msg == YES) {
@@ -423,7 +423,7 @@ int stack_calculate(char *in, int *value) {
 	    d += e - 'a' + 10;
 	  else if (e == ' ' || e == ')' || e == '|' || e == '&' || e == '+' || e == '-' ||
 		   e == '*' || e == '/' || e == ',' || e == '^' || e == '<' || e == '>' ||
-		   e == '#' || e == '~' || e == ']' || e == '.' || e == 'h' || e == 'H' || e == 0xA)
+		   e == '#' || e == '~' || e == ']' || e == '.' || e == 'h' || e == 'H' || isNewLn(e))
 	    break;
 	  else {
 	    if (input_number_error_msg == YES) {
@@ -473,7 +473,7 @@ int stack_calculate(char *in, int *value) {
 	  }
 	  else if (e == ' ' || e == ')' || e == '|' || e == '&' || e == '+' || e == '-' || e == '*' ||
 		   e == '/' || e == ',' || e == '^' || e == '<' || e == '>' || e == '#' || e == '~' ||
-		   e == ']' || e == 0xA)
+		   e == ']' || isNewLn(e))
 	    break;
 	  else if (e == '.') {
 #if defined(MCS6502) || defined(W65816) || defined(MCS6510) || defined(WDC65C02) || defined(HUC6280)
@@ -519,12 +519,12 @@ int stack_calculate(char *in, int *value) {
 	e = *in;
 	if (e == ' ' || e == ')' || e == '|' || e == '&' || e == '+' || e == '-' || e == '*' ||
 	    e == '/' || e == ',' || e == '^' || e == '<' || e == '>' || e == '#' || e == ']' ||
-	    e == '~' || e == 0xA)
+	    e == '~' || isNewLn(e))
 	  break;
 	if (e == '.' && (*(in+1) == 'b' || *(in+1) == 'B' || *(in+1) == 'w' || *(in+1) == 'W' || *(in+1) == 'l' || *(in+1) == 'L') &&
 	    (*(in+2) == ' ' || *(in+2) == ')' || *(in+2) == '|' || *(in+2) == '&' || *(in+2) == '+' || *(in+2) == '-' || *(in+2) == '*' ||
 	     *(in+2) == '/' || *(in+2) == ',' || *(in+2) == '^' || *(in+2) == '<' || *(in+2) == '>' || *(in+2) == '#' || *(in+2) == ']' ||
-	     *(in+2) == '~' || *(in+2) == 0xA))
+	     *(in+2) == '~' || isNewLn(*(in+2))))
 	  break;
 	si[q].string[k] = e;
 	in++;

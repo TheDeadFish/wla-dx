@@ -849,7 +849,7 @@ int evaluate_token(void) {
 
   for (f = opcode_n[(unsigned int)tmp[0]]; f > 0; f--) {
     for (inz = 0, d = SUCCEEDED; inz < OP_SIZE_MAX; inz++) {
-      if (tmp[inz] == 0 && opt_tmp->op[inz] == 0 && buffer[i] == 0x0A) {
+      if (tmp[inz] == 0 && opt_tmp->op[inz] == 0 && isNewLn(buffer[i])) {
         if (opt_tmp->type == 0)
           output_assembled_opcode(opt_tmp, "d%d ", opt_tmp->hex);
         else
@@ -1173,6 +1173,17 @@ void give_snes_rom_mode_defined_error(char *prior) {
 
 #endif
 
+int g_wasFakeNewLine;
+extern int c_style_parse;
+
+int isNewLn(char ch)
+{
+	if(c_style_parse && (ch == ';')) { 
+		g_wasFakeNewLine = 1; return 1; }
+	if(ch == 0xA) { 
+		g_wasFakeNewLine = 0; return 1; }
+	return 0;
+}
 
 void next_line(void) {
 
@@ -1185,8 +1196,12 @@ void next_line(void) {
   if (listfile_data == YES)
     fprintf(file_out_ptr, "k%d ", active_file_info_last->line_current);
 
-  if (active_file_info_last != NULL)
-    active_file_info_last->line_current++;
+	if(g_wasFakeNewLine)
+		g_wasFakeNewLine = 0;
+	else {
+		if (active_file_info_last != NULL)
+			active_file_info_last->line_current++;
+	}
 }
 
 
@@ -5975,7 +5990,7 @@ int directive_macro(void) {
 
   /* go to the end of the macro */
   for (; i < size; i++) {
-    if (buffer[i] == 0x0A) {
+    if (isNewLn(buffer[i])) {
       next_line();
       continue;
     }
@@ -8748,7 +8763,7 @@ int parse_if_directive(void) {
 
     for (; i < size; i++) {
 
-      if (buffer[i] == 0x0A)
+      if (isNewLn(buffer[i]))
         break;
       else if (buffer[i] == '\\') {
         e = buffer[++i];

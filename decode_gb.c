@@ -1,7 +1,7 @@
 
 case 0:
 for ( ; x < OP_SIZE_MAX; inz++, x++) {
-  if (opt_tmp->op[x] == 0 && buffer[inz] == 0x0A) {
+  if (opt_tmp->op[x] == 0 && isNewLn(buffer[inz])) {
     output_assembled_opcode(opt_tmp, "d%d ", opt_tmp->hex);
     i = inz;
     return SUCCEEDED;
@@ -33,7 +33,7 @@ for ( ; x < OP_SIZE_MAX; inz++, x++) {
     }
 
     for (x++ ; x < OP_SIZE_MAX; inz++, x++) {
-      if (opt_tmp->op[x] == 0 && buffer[inz] == 0x0A) {
+      if (opt_tmp->op[x] == 0 && isNewLn(buffer[inz])) {
 	if (z == SUCCEEDED)
 	  output_assembled_opcode(opt_tmp, "d%d d%d ", opt_tmp->hex, d);
 	else if (z == INPUT_NUMBER_ADDRESS_LABEL)
@@ -75,7 +75,7 @@ for ( ; x < OP_SIZE_MAX; inz++, x++) {
     }
 
     for (x++ ; x < OP_SIZE_MAX; inz++, x++) {
-      if (opt_tmp->op[x] == 0 && buffer[inz] == 0x0A) {
+      if (opt_tmp->op[x] == 0 && isNewLn(buffer[inz])) {
 	if (z == SUCCEEDED)
 	  output_assembled_opcode(opt_tmp, "d%d y%d ", opt_tmp->hex, d);
 	else if (z == INPUT_NUMBER_ADDRESS_LABEL)
@@ -97,7 +97,7 @@ break;
 
 case 3:
 for ( ; x < OP_SIZE_MAX; inz++, x++) {
-  if (opt_tmp->op[x] == 0 && buffer[inz] == 0x0A) {
+  if (opt_tmp->op[x] == 0 && isNewLn(buffer[inz])) {
     output_assembled_opcode(opt_tmp, "y%d ", opt_tmp->hex);
     i = inz;
     return SUCCEEDED;
@@ -119,7 +119,7 @@ for ( ; x < OP_SIZE_MAX; inz++, x++) {
       break;
     
     for (x++ ; x < OP_SIZE_MAX; inz++, x++) {
-      if (opt_tmp->op[x] == 0 && buffer[inz] == 0x0A) {
+      if (opt_tmp->op[x] == 0 && isNewLn(buffer[inz])) {
 	output_assembled_opcode(opt_tmp, "d%d ", opt_tmp->hex);
 	i = inz;
 	return SUCCEEDED;
@@ -145,7 +145,7 @@ for ( ; x < OP_SIZE_MAX; inz++, x++) {
       break;
 
     for (x++ ; x < OP_SIZE_MAX; inz++, x++) {
-      if (opt_tmp->op[x] == 0 && buffer[inz] == 0x0A) {
+      if (opt_tmp->op[x] == 0 && isNewLn(buffer[inz])) {
 	output_assembled_opcode(opt_tmp, "y%d ", opt_tmp->hex);
 	i = inz;
 	return SUCCEEDED;

@@ -511,5 +511,8 @@ struct filepointer {
 #define TYPE_LABEL             2
 #define TYPE_STACK_CALCULATION 3
 
+int g_wasFakeNewLine;
+int isNewLn(char ch);
+
 #endif /* _DEFINES_H */
 
