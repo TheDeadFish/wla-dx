@@ -20,6 +20,15 @@ int is_end_token(char e) {
 		|| e == '>' || e == '#' || e == '~' || e == ']' || isNewLn(e);
 }
 
+#define HIGH_PRECEDENCE_OP() { b--; \
+	while (b != -1 && op[b] != SI_OP_LEFT && op[b] != SI_OP_PLUS && op[b] != SI_OP_MINUS) { \
+	    ta[d].type = STACK_ITEM_TYPE_OPERATOR; ta[d].value = op[b]; b--; d++; } b++; \
+	op[b] = si[k].value; b++; }
+			
+#define LOW_PRECEDENCE_OP() { b--; \
+	while (b != -1 && op[b] != SI_OP_LEFT) { \
+	    ta[d].type = STACK_ITEM_TYPE_OPERATOR; ta[d].value = op[b]; b--; d++; } b++; \
+	op[b] = si[k].value; b++; }
 
 extern int input_number_error_msg, bankheader_status, input_float_mode;
 extern int i, size, d, macro_active, string_size, section_status, parse_floats;
@@ -683,160 +692,43 @@ int stack_calculate(char *in, int *value) {
       }
       else {
 	if (si[k].value == SI_OP_PLUS) {
-	  b--;
-	  while (b != -1 && op[b] != SI_OP_LEFT) {
-	    ta[d].type = STACK_ITEM_TYPE_OPERATOR;
-	    ta[d].value = op[b];
-	    b--;
-	    d++;
-	  }
-	  b++;
-	  op[b] = SI_OP_PLUS;
-	  b++;
+		LOW_PRECEDENCE_OP()
 	}
 	else if (si[k].value == SI_OP_MINUS) {
-	  b--;
-	  while (b != -1 && op[b] != SI_OP_LEFT) {
-	    ta[d].type = STACK_ITEM_TYPE_OPERATOR;
-	    ta[d].value = op[b];
-	    b--;
-	    d++;
-	  }
-	  b++;
-	  op[b] = SI_OP_MINUS;
-	  b++;
+		LOW_PRECEDENCE_OP()
 	}
 	else if (si[k].value == SI_OP_LOW_BYTE) {
-	  b--;
-	  while (b != -1 && op[b] != SI_OP_LEFT) {
-	    ta[d].type = STACK_ITEM_TYPE_OPERATOR;
-	    ta[d].value = op[b];
-	    b--;
-	    d++;
-	  }
-	  b++;
-	  op[b] = SI_OP_LOW_BYTE;
-	  b++;
+		LOW_PRECEDENCE_OP()
 	}
 	else if (si[k].value == SI_OP_HIGH_BYTE) {
-	  b--;
-	  while (b != -1 && op[b] != SI_OP_LEFT) {
-	    ta[d].type = STACK_ITEM_TYPE_OPERATOR;
-	    ta[d].value = op[b];
-	    b--;
-	    d++;
-	  }
-	  b++;
-	  op[b] = SI_OP_HIGH_BYTE;
-	  b++;
+		LOW_PRECEDENCE_OP()
 	}
 	else if (si[k].value == SI_OP_XOR) {
-	  b--;
-	  while (b != -1 && op[b] != SI_OP_LEFT) {
-	    ta[d].type = STACK_ITEM_TYPE_OPERATOR;
-	    ta[d].value = op[b];
-	    b--;
-	    d++;
-	  }
-	  b++;
-	  op[b] = SI_OP_XOR;
-	  b++;
+		LOW_PRECEDENCE_OP()
 	}
 	else if (si[k].value == SI_OP_MULTIPLY) {
-	  b--;
-	  while (b != -1 && op[b] != SI_OP_LEFT && op[b] != SI_OP_PLUS && op[b] != SI_OP_MINUS) {
-	    ta[d].type = STACK_ITEM_TYPE_OPERATOR;
-	    ta[d].value = op[b];
-	    b--;
-	    d++;
-	  }
-	  b++;
-	  op[b] = SI_OP_MULTIPLY;
-	  b++;
+		HIGH_PRECEDENCE_OP()
 	}
 	else if (si[k].value == SI_OP_DIVIDE) {
-	  b--;
-	  while (b != -1 && op[b] != SI_OP_LEFT && op[b] != SI_OP_PLUS && op[b] != SI_OP_MINUS) {
-	    ta[d].type = STACK_ITEM_TYPE_OPERATOR;
-	    ta[d].value = op[b];
-	    b--;
-	    d++;
-	  }
-	  b++;
-	  op[b] = SI_OP_DIVIDE;
-	  b++;
+		HIGH_PRECEDENCE_OP()
 	}
 	else if (si[k].value == SI_OP_MODULO) {
-	  b--;
-	  while (b != -1 && op[b] != SI_OP_LEFT && op[b] != SI_OP_PLUS && op[b] != SI_OP_MINUS) {
-	    ta[d].type = STACK_ITEM_TYPE_OPERATOR;
-	    ta[d].value = op[b];
-	    b--;
-	    d++;
-	  }
-	  b++;
-	  op[b] = SI_OP_MODULO;
-	  b++;
+		HIGH_PRECEDENCE_OP()
 	}
 	else if (si[k].value == SI_OP_POWER) {
-	  b--;
-	  while (b != -1 && op[b] != SI_OP_LEFT && op[b] != SI_OP_PLUS && op[b] != SI_OP_MINUS) {
-	    ta[d].type = STACK_ITEM_TYPE_OPERATOR;
-	    ta[d].value = op[b];
-	    b--;
-	    d++;
-	  }
-	  b++;
-	  op[b] = SI_OP_POWER;
-	  b++;
+		HIGH_PRECEDENCE_OP()
 	}
 	else if (si[k].value == SI_OP_SHIFT_LEFT) {
-	  b--;
-	  while (b != -1 && op[b] != SI_OP_LEFT && op[b] != SI_OP_PLUS && op[b] != SI_OP_MINUS) {
-	    ta[d].type = STACK_ITEM_TYPE_OPERATOR;
-	    ta[d].value = op[b];
-	    b--;
-	    d++;
-	  }
-	  b++;
-	  op[b] = SI_OP_SHIFT_LEFT;
-	  b++;
+		HIGH_PRECEDENCE_OP()
 	}
 	else if (si[k].value == SI_OP_SHIFT_RIGHT) {
-	  b--;
-	  while (b != -1 && op[b] != SI_OP_LEFT && op[b] != SI_OP_PLUS && op[b] != SI_OP_MINUS) {
-	    ta[d].type = STACK_ITEM_TYPE_OPERATOR;
-	    ta[d].value = op[b];
-	    b--;
-	    d++;
-	  }
-	  b++;
-	  op[b] = SI_OP_SHIFT_RIGHT;
-	  b++;
+		HIGH_PRECEDENCE_OP()
 	}
 	else if (si[k].value == SI_OP_AND) {
-	  b--;
-	  while (b != -1 && op[b] != SI_OP_LEFT && op[b] != SI_OP_PLUS && op[b] != SI_OP_MINUS) {
-	    ta[d].type = STACK_ITEM_TYPE_OPERATOR;
-	    ta[d].value = op[b];
-	    b--;
-	    d++;
-	  }
-	  b++;
-	  op[b] = SI_OP_AND;
-	  b++;
+		HIGH_PRECEDENCE_OP()
 	}
 	else if (si[k].value == SI_OP_OR) {
-	  b--;
-	  while (b != -1 && op[b] != SI_OP_LEFT && op[b] != SI_OP_PLUS && op[b] != SI_OP_MINUS) {
-	    ta[d].type = STACK_ITEM_TYPE_OPERATOR;
-	    ta[d].value = op[b];
-	    b--;
-	    d++;
-	  }
-	  b++;
-	  op[b] = SI_OP_OR;
-	  b++;
+		HIGH_PRECEDENCE_OP()
 	}
 	else if (si[k].value == SI_OP_LEFT) {
 	  op[b] = SI_OP_LEFT;
