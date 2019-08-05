@@ -12,6 +12,13 @@
 #include "pass_1.h"
 #include "stack.h"
 #include "include_file.h"
+	
+static
+int is_end_token(char e) {
+	return e == ' ' || e == ')' || e == '|' || e == '&' || e == '+' 
+		|| e == '-' || e == '*' || e == '/' || e == ',' || e == '^' || e == '<' 
+		|| e == '>' || e == '#' || e == '~' || e == ']' || isNewLn(e);
+}
 
 
 extern int input_number_error_msg, bankheader_status, input_float_mode;
@@ -137,7 +144,7 @@ int stack_calculate(char *in, int *value) {
       continue;
     }
     else if (*in == '-') {
-      if (*(in + 1) == '-') {
+      if (in[1] == '-') {
 	si[q].type = STACK_ITEM_TYPE_STRING;
 	si[q].sign = SI_SIGN_POSITIVE;
 	for (k = 0; *in == '-' && k < 32; k++, in++) {
@@ -153,7 +160,7 @@ int stack_calculate(char *in, int *value) {
       q++;
     }
     else if (*in == '+') {
-      if (*(in + 1) == '+') {
+      if (in[1] == '+') {
 	si[q].type = STACK_ITEM_TYPE_STRING;
 	si[q].sign = SI_SIGN_POSITIVE;
 	for (k = 0; *in == '+' && k < 32; k++, in++)
@@ -208,7 +215,7 @@ int stack_calculate(char *in, int *value) {
       q++;
       in++;
     }
-    else if (*in == '<' && *(in + 1) == '<') {
+    else if (*in == '<' && in[1] == '<') {
       si[q].type = STACK_ITEM_TYPE_OPERATOR;
       si[q].value = SI_OP_SHIFT_LEFT;
       q++;
@@ -227,7 +234,7 @@ int stack_calculate(char *in, int *value) {
       q++;
       in++;
     }
-    else if (*in == '>' && *(in + 1) == '>') {
+    else if (*in == '>' && in[1] == '>') {
       si[q].type = STACK_ITEM_TYPE_OPERATOR;
       si[q].value = SI_OP_SHIFT_RIGHT;
       q++;
@@ -252,9 +259,9 @@ int stack_calculate(char *in, int *value) {
       q++;
       in++;
     }
-    else if (*in == '=' && *(in + 1) == '=')
+    else if (*in == '=' && in[1] == '=')
       break;
-    else if (*in == '!' && *(in + 1) == '=')
+    else if (*in == '!' && in[1] == '=')
       break;
     else if (*in == '(') {
       si[q].type = STACK_ITEM_TYPE_OPERATOR;
@@ -314,9 +321,7 @@ int stack_calculate(char *in, int *value) {
 	e = *in;
 	if (e == '0' || e == '1')
 	  d += e - '0';
-	else if (e == ' ' || e == ')' || e == '|' || e == '&' || e == '+' || e == '-' || e == '*' ||
-		 e == '/' || e == ',' || e == '^' || e == '<' || e == '>' || e == '#' || e == '~' ||
-		 e == ']' || e == '.' || isNewLn(e))
+	else if (is_end_token(e) || e == '.')
 	  break;
 	else {
 	  if (input_number_error_msg == YES) {
@@ -365,9 +370,7 @@ int stack_calculate(char *in, int *value) {
 	  d += e - 'A' + 10;
 	else if (e >= 'a' && e <= 'f')
 	  d += e - 'a' + 10;
-	else if (e == ' ' || e == ')' || e == '|' || e == '&' || e == '+' || e == '-' ||
-		 e == '*' || e == '/' || e == ',' || e == '^' || e == '<' || e == '>' ||
-		 e == '#' || e == '~' || e == ']' || e == '.' || isNewLn(e))
+	else if (is_end_token(e) || e == '.')
 	  break;
 	else {
 	  if (input_number_error_msg == YES) {
@@ -421,9 +424,7 @@ int stack_calculate(char *in, int *value) {
 	    d += e - 'A' + 10;
 	  else if (e >= 'a' && e <= 'f')
 	    d += e - 'a' + 10;
-	  else if (e == ' ' || e == ')' || e == '|' || e == '&' || e == '+' || e == '-' ||
-		   e == '*' || e == '/' || e == ',' || e == '^' || e == '<' || e == '>' ||
-		   e == '#' || e == '~' || e == ']' || e == '.' || e == 'h' || e == 'H' || isNewLn(e))
+	  else if (is_end_token(e) || e == '.' || e == 'h' || e == 'H')
 	    break;
 	  else {
 	    if (input_number_error_msg == YES) {
@@ -471,13 +472,11 @@ int stack_calculate(char *in, int *value) {
 	      dom /= 10.0;
 	    }
 	  }
-	  else if (e == ' ' || e == ')' || e == '|' || e == '&' || e == '+' || e == '-' || e == '*' ||
-		   e == '/' || e == ',' || e == '^' || e == '<' || e == '>' || e == '#' || e == '~' ||
-		   e == ']' || isNewLn(e))
+	  else if (is_end_token(e))
 	    break;
 	  else if (e == '.') {
 #if defined(MCS6502) || defined(W65816) || defined(MCS6510) || defined(WDC65C02) || defined(HUC6280)
-	    if (*(in+1) == 'b' || *(in+1) == 'B' || *(in+1) == 'w' || *(in+1) == 'W')
+	    if (in[1] == 'b' || in[1] == 'B' || in[1] == 'w' || in[1] == 'W')
 	      break;
 #endif
 	    if (parse_floats == NO)
@@ -517,14 +516,10 @@ int stack_calculate(char *in, int *value) {
       si[q].sign = SI_SIGN_POSITIVE;
       for (k = 0; k < 63; k++) {
 	e = *in;
-	if (e == ' ' || e == ')' || e == '|' || e == '&' || e == '+' || e == '-' || e == '*' ||
-	    e == '/' || e == ',' || e == '^' || e == '<' || e == '>' || e == '#' || e == ']' ||
-	    e == '~' || isNewLn(e))
+	if (is_end_token(e))
 	  break;
-	if (e == '.' && (*(in+1) == 'b' || *(in+1) == 'B' || *(in+1) == 'w' || *(in+1) == 'W' || *(in+1) == 'l' || *(in+1) == 'L') &&
-	    (*(in+2) == ' ' || *(in+2) == ')' || *(in+2) == '|' || *(in+2) == '&' || *(in+2) == '+' || *(in+2) == '-' || *(in+2) == '*' ||
-	     *(in+2) == '/' || *(in+2) == ',' || *(in+2) == '^' || *(in+2) == '<' || *(in+2) == '>' || *(in+2) == '#' || *(in+2) == ']' ||
-	     *(in+2) == '~' || isNewLn(*(in+2))))
+	if (e == '.' && (in[1] == 'b' || in[1] == 'B' || in[1] == 'w' || in[1] == 'W' || in[1] == 'l' || in[1] == 'L') &&
+		 is_end_token(in[2]))
 	  break;
 	si[q].string[k] = e;
 	in++;
