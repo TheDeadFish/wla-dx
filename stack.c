@@ -122,14 +122,52 @@ static int _break_before_value_or_string(int i, struct stack_item *si) {
   return FAILED;
 }
 
+char* stack_parseNum(double* out, char* in, int base)
+{
+	/* parse the number */
+	char* end; int e;	
+	if(isspace(*in)) { end = in; } else 
+	if(base) { *out = strtoul(in, &end, base); }
+	else { *out = strtod(in, &end); base = 10; }
+	
+	/* check end token */
+	e = *end; 
+	if(in != end) {
+		if(is_end_token(e) || e == '.') return end;
+		if(base == 16 && (e == 'h' || e == 'H')) 
+			return end+1; 
+	}
+
+	/* print error message */
+	if (input_number_error_msg == YES) {
+		sprintf(xyz, "Got '%c' (%d) when expected [0-%X].\n", e, e, base-1);
+		print_error(xyz, ERROR_NUM);
+	}
+	return NULL;
+}
+
+
+char* stack_parseDec(double* value, char* in) {
+
+	int k;
+	for(k = 0;; k++) {
+		if(isdigit(in[k])) continue;
+		if(isalpha(in[k])) return stack_parseNum(value, in, 16);
+		if(in[k] == '.') {
+			if(isdigit(in[k+1]) && parse_floats)
+				return stack_parseNum(value, in, -1); }
+		return stack_parseNum(value, in, 10);
+	}
+}
+
 
 int stack_calculate(char *in, int *value) {
 
-  int q = 0, b = 0, d, k, op[256], n, o, l;
+  int q = 0, b = 0, d, k, op[256], o, l;
   struct stack_item si[256], ta[256];
   struct stack s;
   unsigned char e;
-  double dou = 0.0, dom;
+  double dou = 0.0;
 
 
   /* initialize (from Amiga's SAS/C) */
@@ -322,28 +360,13 @@ int stack_calculate(char *in, int *value) {
     else if (*in == ']')
       break;
     else if (*in == '%') {
-      d = 0;
-      for (k = 0; k < 31; k++, d = d<<1) {
-	in++;
-	e = *in;
-	if (e == '0' || e == '1')
-	  d += e - '0';
-	else if (is_end_token(e) || e == '.')
-	  break;
-	else {
-	  if (input_number_error_msg == YES) {
-	    sprintf(xyz, "Got '%c' (%d) when expected a 0 or 1.\n", e, e);
-	    print_error(xyz, ERROR_NUM);
-	  }
-	  return FAILED;
-	}
-      }
-
-      d = d>>1;
-
-      si[q].type = STACK_ITEM_TYPE_VALUE;
-      si[q].value = d;
-      q++;
+	
+	
+		in = stack_parseNum(&si[q].value, in+1, 2);
+		if(!in) return FAILED;
+		si[q].type = STACK_ITEM_TYPE_VALUE;
+		q++;
+		
     }
     else if (*in == '\'') {
       in++;
@@ -364,149 +387,23 @@ int stack_calculate(char *in, int *value) {
       /* we'll break if the previous item in the stack was a value or a string */
       if (_break_before_value_or_string(q, &si[0]) == SUCCEEDED)
 	break;
-      
-      d = 0;
-      for (k = 0; k < 8; k++, d = d << 4) {
-	in++;
-	e = *in;
-	if (e >= '0' && e <= '9')
-	  d += e - '0';
-	else if (e >= 'A' && e <= 'F')
-	  d += e - 'A' + 10;
-	else if (e >= 'a' && e <= 'f')
-	  d += e - 'a' + 10;
-	else if (is_end_token(e) || e == '.')
-	  break;
-	else {
-	  if (input_number_error_msg == YES) {
-	    sprintf(xyz, "Got '%c' (%d) when expected [0-F].\n", e, e);
-	    print_error(xyz, ERROR_NUM);
-	  }
-	  return FAILED;
-	}
-      }
+	
+		in = stack_parseNum(&si[q].value, in+1, 16);
+		if(!in) return FAILED;
+		si[q].type = STACK_ITEM_TYPE_VALUE;
+		q++;
 
-      d = d >> 4;
-
-      si[q].type = STACK_ITEM_TYPE_VALUE;
-      si[q].value = d;
-      q++;
     }
     else if (*in >= '0' && *in <= '9') {
       /* we'll break if the previous item in the stack was a value or a string */
       if (_break_before_value_or_string(q, &si[0]) == SUCCEEDED)
 	break;
-
-      /* is it a hexadecimal value after all? */
-      n = 0;
-      for (k = 0; k < 9; k++) {
-	if (in[k] >= '0' && in[k] <= '9')
-	  continue;
-	if (in[k] >= 'a' && in[k] <= 'f') {
-	  n = 1;
-	  break;
-	}
-	if (in[k] >= 'A' && in[k] <= 'F') {
-	  n = 1;
-	  break;
-	}
-	if (in[k] == 'h' || in[k] == 'H') {
-	  n = 1;
-	  break;
-	}
-	break;
-      }
-
-      if (n == 1) {
-	/* it's hex */
-	d = 0;
-	for (k = 0; k < 8; k++, d = d << 4) {
-	  e = *(in++);
-	  if (e >= '0' && e <= '9')
-	    d += e - '0';
-	  else if (e >= 'A' && e <= 'F')
-	    d += e - 'A' + 10;
-	  else if (e >= 'a' && e <= 'f')
-	    d += e - 'a' + 10;
-	  else if (is_end_token(e) || e == '.' || e == 'h' || e == 'H')
-	    break;
-	  else {
-	    if (input_number_error_msg == YES) {
-	      sprintf(xyz, "Got '%c' (%d) when expected [0-F].\n", e, e);
-	      print_error(xyz, ERROR_NUM);
-	    }
-	    return FAILED;
-	  }
-	}
-
-	d = d >> 4;
-
-	si[q].type = STACK_ITEM_TYPE_VALUE;
-	si[q].value = d;
-	q++;
-      }
-      else {
-	int max_digits = 10;
 	
-	/* it's decimal */
-	dou = (*in - '0')*10.0;
-	dom = 1.0;
-	n = 0;
-	for (k = 0; k < max_digits; k++) {
-	  in++;
-	  e = *in;
-	  if (e >= '0' && e <= '9') {
-	    if (k == max_digits - 1) {
-	      if (n == 0)
-		print_error("Too many digits in the integer value. Max 10 is supported.\n", ERROR_NUM);
-	      else {
-		sprintf(xyz, "Too many digits in the floating point value. Max %d is supported.\n", MAX_FLOAT_DIGITS);
-		print_error(xyz, ERROR_NUM);
-	      }
-	      return FAILED;
-	    }
-
-	    if (n == 0) {
-	      dou += e - '0';
-	      dou *= 10.0;
-	    }
-	    else if (n == 1) {
-	      dou += dom*(e - '0');
-	      dom /= 10.0;
-	    }
-	  }
-	  else if (is_end_token(e))
-	    break;
-	  else if (e == '.') {
-#if defined(MCS6502) || defined(W65816) || defined(MCS6510) || defined(WDC65C02) || defined(HUC6280)
-	    if (in[1] == 'b' || in[1] == 'B' || in[1] == 'w' || in[1] == 'W')
-	      break;
-#endif
-	    if (parse_floats == NO)
-	      break;
-	    if (n == 1) {
-	      if (input_number_error_msg == YES)
-		print_error("Syntax error.\n", ERROR_NUM);
-	      return FAILED;
-	    }
-	    n = 1;
-	    max_digits = MAX_FLOAT_DIGITS+1;
-	  }
-	  else {
-	    if (input_number_error_msg == YES) {
-	      sprintf(xyz, "Got '%c' (%d) when expected [0-9].\n", e, e);
-	      print_error(xyz, ERROR_NUM);
-	    }
-	    return FAILED;
-	  }
-	}
-
-	dou /= 10;
-
-	si[q].type = STACK_ITEM_TYPE_VALUE;
-	si[q].value = dou;
-	q++;
-      }
+		in = stack_parseDec(&si[q].value, in);
+		if(!in) return FAILED;
+		si[q].type = STACK_ITEM_TYPE_VALUE;
+		q++;
+	
     }
     else {
       /* it must be a string! */
