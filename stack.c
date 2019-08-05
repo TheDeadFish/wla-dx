@@ -144,7 +144,7 @@ int stack_calculate(char *in, int *value) {
   while (!isNewLn(*in)) {
     /* init the stack item */
     si[q].type = 0x123456;
-    si[q].sign = 0x123456;
+    si[q].sign = SI_SIGN_POSITIVE;
     si[q].value = 0x123456;
     si[q].string[0] = 0;
 
@@ -155,7 +155,6 @@ int stack_calculate(char *in, int *value) {
     else if (*in == '-') {
       if (in[1] == '-') {
 	si[q].type = STACK_ITEM_TYPE_STRING;
-	si[q].sign = SI_SIGN_POSITIVE;
 	for (k = 0; *in == '-' && k < 32; k++, in++) {
 	  si[q].string[k] = '-';
 	}
@@ -171,7 +170,6 @@ int stack_calculate(char *in, int *value) {
     else if (*in == '+') {
       if (in[1] == '+') {
 	si[q].type = STACK_ITEM_TYPE_STRING;
-	si[q].sign = SI_SIGN_POSITIVE;
 	for (k = 0; *in == '+' && k < 32; k++, in++)
 	  si[q].string[k] = '+';
 	si[q].string[k] = 0;
@@ -345,7 +343,6 @@ int stack_calculate(char *in, int *value) {
 
       si[q].type = STACK_ITEM_TYPE_VALUE;
       si[q].value = d;
-      si[q].sign = SI_SIGN_POSITIVE;
       q++;
     }
     else if (*in == '\'') {
@@ -361,7 +358,6 @@ int stack_calculate(char *in, int *value) {
 
       si[q].type = STACK_ITEM_TYPE_VALUE;
       si[q].value = d;
-      si[q].sign = SI_SIGN_POSITIVE;
       q++;
     }
     else if (*in == '$') {
@@ -394,7 +390,6 @@ int stack_calculate(char *in, int *value) {
 
       si[q].type = STACK_ITEM_TYPE_VALUE;
       si[q].value = d;
-      si[q].sign = SI_SIGN_POSITIVE;
       q++;
     }
     else if (*in >= '0' && *in <= '9') {
@@ -448,7 +443,6 @@ int stack_calculate(char *in, int *value) {
 
 	si[q].type = STACK_ITEM_TYPE_VALUE;
 	si[q].value = d;
-	si[q].sign = SI_SIGN_POSITIVE;
 	q++;
       }
       else {
@@ -511,7 +505,6 @@ int stack_calculate(char *in, int *value) {
 
 	si[q].type = STACK_ITEM_TYPE_VALUE;
 	si[q].value = dou;
-	si[q].sign = SI_SIGN_POSITIVE;
 	q++;
       }
     }
@@ -522,7 +515,6 @@ int stack_calculate(char *in, int *value) {
       if (_break_before_value_or_string(q, &si[0]) == SUCCEEDED)
 	break;
 
-      si[q].sign = SI_SIGN_POSITIVE;
       for (k = 0; k < 63; k++) {
 	e = *in;
 	if (is_end_token(e))
