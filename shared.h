@@ -45,6 +45,12 @@
 #define SI_OP_LOW_BYTE    13
 #define SI_OP_HIGH_BYTE   14
 #define SI_OP_NEGATE      15
+#define SI_OP_CMP_EQU     16
+#define SI_OP_CMP_NEQU    17
+#define SI_OP_CMP_LESS    18
+#define SI_OP_CMP_GRTH    19
+#define SI_OP_CMP_GREQ    20
+#define SI_OP_CMP_LTEQ    21
 
 #define SI_SIGN_POSITIVE 0
 #define SI_SIGN_NEGATIVE 1

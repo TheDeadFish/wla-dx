@@ -18,7 +18,8 @@ static
 int is_end_token(char e) {
 	return e == ' ' || e == ')' || e == '|' || e == '&' || e == '+' 
 		|| e == '-' || e == '*' || e == '/' || e == ',' || e == '^' || e == '<' 
-		|| e == '>' || e == '#' || e == '~' || e == ']' || isNewLn(e);
+		|| e == '>' || e == '#' || e == '~' || e == ']' || e == '=' || e == '!'
+		|| isNewLn(e);
 }
 
 extern int input_number_error_msg, bankheader_status, input_float_mode;
@@ -207,18 +208,8 @@ typedef struct {
 
 
 enum {
-	/* comparison ops */
-	SI_OP_CMP_LESS = 16,
-	SI_OP_CMP_GRTH,
-	SI_OP_CMP_EQU,
-	SI_OP_CMP_NEQU,
-	SI_OP_CMP_GREQ,
-	SI_OP_CMP_LTEQ,
-	
-	
-	
 	/* internal operators */
-	SI_OP_UNIPLUS,
+	SI_OP_UNIPLUS = 22,
 	
 	SI_OP_PLUS_PAIR,
 	SI_OP_MINUS_PAIR,
@@ -227,14 +218,10 @@ enum {
 	SI_OP_DOT,
 	SI_OP_INVALID,
 	
-	
 	/* value or string */
 	SI_OP_DOLLAR, SI_OP_DECIMAL,
 	SI_OP_PERCENT, SI_OP_CHAR,
 	SI_OP_STRING
-	
-	
-	
 };
 
 int op_presidence(int code)
@@ -248,10 +235,10 @@ int op_presidence(int code)
 		return 0;
 	case SI_OP_PLUS:
 	case SI_OP_MINUS:
-		return 1;
+		return 2;
 	case SI_OP_RIGHT: return 244;
 	case SI_OP_LEFT: return 255;
-	default: return 2;
+	default: return 1;
 	}
 }
 
@@ -271,13 +258,15 @@ op_table opList[] = {
 	{">>", SI_OP_SHIFT_RIGHT   ,-SI_OP_INVALID},
 	{"#",  SI_OP_MODULO        ,-SI_OP_INVALID},
 	{"~",  SI_OP_XOR           ,-SI_OP_INVALID},
-	{"<",  -SI_OP_INVALID       ,SI_OP_LOW_BYTE},
-	{">",  -SI_OP_INVALID       , SI_OP_HIGH_BYTE},
+	{"<",  SI_OP_CMP_LESS       ,SI_OP_LOW_BYTE},
+	{">",  SI_OP_CMP_GRTH       , SI_OP_HIGH_BYTE},
 	
 	
 	/* comparison operators */
 	{"==", SI_OP_CMP_EQU       ,-SI_OP_INVALID},
 	{"!=", SI_OP_CMP_NEQU      ,-SI_OP_INVALID},
+	{">=", SI_OP_CMP_GREQ      ,-SI_OP_INVALID},
+	{"<=", SI_OP_CMP_LTEQ      ,-SI_OP_INVALID},
 	
 	/* internal operators */
 	{"++", -SI_OP_INVALID       ,-SI_OP_PLUS_PAIR},
@@ -384,6 +373,11 @@ int stack_calculate(char *in, int *value) {
 		case SI_OP_RIGHT:
 			if(--b < 0) goto LOOP_BREAK;
 			in++; goto SIMPLE_OPERATOR;
+			
+		/* comparison operators */
+		case SI_OP_CMP_EQU: case SI_OP_CMP_NEQU:
+		case SI_OP_CMP_LESS: case SI_OP_CMP_GRTH:
+		case SI_OP_CMP_LTEQ: case SI_OP_CMP_GREQ:
 
 		/* simple operators */
 		case SI_OP_PLUS: case SI_OP_MINUS: case SI_OP_MULTIPLY:
@@ -432,20 +426,6 @@ LOOP_BREAK:
   if (b != 0) {
     print_error("Unbalanced parentheses.\n", ERROR_STC);
     return FAILED;
-  }
-
-  /* only one item found -> let the item parser handle it */
-  if (q == 1)
-    return STACK_CALCULATE_DELAY;
-
-  /* check if there was data before the computation */
-  if (q > 1 && (si[0].type == STACK_ITEM_TYPE_STRING || si[0].type == STACK_ITEM_TYPE_VALUE)) {
-    if (si[1].type == STACK_ITEM_TYPE_STRING || si[1].type == STACK_ITEM_TYPE_VALUE)
-      return STACK_CALCULATE_DELAY;
-    if (si[1].type == STACK_ITEM_TYPE_OPERATOR) {
-      if (si[1].value == SI_OP_LEFT)
-	return STACK_CALCULATE_DELAY;
-    }
   }
 
 #ifdef SPC700
@@ -753,95 +733,79 @@ int resolve_stack(struct stack_item s[], int x) {
   return SUCCEEDED;
 }
 
+static	
+int op_nArgs(int x) 
+{
+	switch(x) {
+	case SI_OP_LOW_BYTE:
+	case SI_OP_HIGH_BYTE:
+	case SI_OP_NEGATE: return 1;
+	default: return 2;
+	}
+}
 
+
+#define EXEC_OP(op, fn) case op: v[t] = fn; break;
+
+
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 int compute_stack(struct stack *sta, int x, double *result) {
 
   struct stack_item *s;
   double v[256];
-  int r, t, z;
-
+  int r, t;
+	double a1, a2;
+	int i1, i2;
 
   v[0] = 0.0;
 
   s = sta->stack;
-  for (r = 0, t = 0; r < x; r++, s++) {
+  for (r = 0, t = -1; r < x; r++, s++) {
 	printf("%d, %d\n", s->type, (int)s->value);
 	
 	
     if (s->type == STACK_ITEM_TYPE_VALUE) {
-	v[t] = s->value;
-      t++;
+			t++; v[t] = s->value;
+      
     }
     else {
-      switch ((int)s->value) {
-      case SI_OP_NEGATE:
-	v[t - 1] = -v[t - 1];
-	break;
-      case SI_OP_PLUS:
-	v[t - 2] += v[t - 1];
-	t--;
-	break;
-      case SI_OP_MINUS:
-	v[t - 2] -= v[t - 1];
-	t--;
-	break;
-      case SI_OP_MULTIPLY:
-	v[t - 2] *= v[t - 1];
-	t--;
-	break;
-      case SI_OP_LOW_BYTE:
-	z = (int)v[t - 1];
-	v[t - 1] = z & 0xFF;
-	break;
-      case SI_OP_HIGH_BYTE:
-	z = (int)v[t - 1];
-	v[t - 1] = (z>>8) & 0xFF;
-	break;
-      case SI_OP_XOR:
-	/* 16bit XOR? */
-	if (v[t - 2] > 0xFF || v[t - 2] < -128 || v[t - 1] > 0xFF || v[t - 1] < -128)
-	  v[t - 2] = ((int)v[t - 1] ^ (int)v[t - 2]) & 0xFFFF;
-	/* 8bit XOR */
-	else
-	  v[t - 2] = ((int)v[t - 1] ^ (int)v[t - 2]) & 0xFF;
-	t--;
-	break;
-      case SI_OP_OR:
-	v[t - 2] = (int)v[t - 1] | (int)v[t - 2];
-	t--;
-	break;
-      case SI_OP_AND:
-	v[t - 2] = (int)v[t - 1] & (int)v[t - 2];
-	t--;
-	break;
-      case SI_OP_MODULO:
-	if (((int)v[t - 1]) == 0) {
-	  fprintf(stderr, "%s:%d: COMPUTE_STACK: Modulo by zero.\n", get_file_name(sta->filename_id), sta->linenumber);
-	  return FAILED;
-	}
-	v[t - 2] = (int)v[t - 2] % (int)v[t - 1];
-	t--;
-	break;
-      case SI_OP_DIVIDE:
-	if (v[t - 1] == 0.0) {
-	  fprintf(stderr, "%s:%d: COMPUTE_STACK: Division by zero.\n", get_file_name(sta->filename_id), sta->linenumber);
-	  return FAILED;
-	}
-	v[t - 2] /= v[t - 1];
-	t--;
-	break;
-      case SI_OP_POWER:
-	v[t - 2] = pow(v[t - 2], v[t - 1]);
-	t--;
-	break;
-      case SI_OP_SHIFT_LEFT:
-	v[t - 2] = (int)v[t - 2] << (int)v[t - 1];
-	t--;
-	break;
-      case SI_OP_SHIFT_RIGHT:
-	v[t - 2] = (int)v[t - 2] >> (int)v[t - 1];
-	t--;
-	break;
+			
+			/* fetch arguments */
+			int code = (int)s->value;
+			if(op_nArgs(code) > 1) { a2 = v[t]; t--; }
+			a1 = v[t]; i1 = a1; i2 = a2;
+			
+			/* execute operand */
+      switch (code) {
+			
+			/* arithmetic operators */
+			EXEC_OP(SI_OP_PLUS, a1+a2);
+			EXEC_OP(SI_OP_MINUS, a1+a2);
+			EXEC_OP(SI_OP_MULTIPLY, a1*a2);
+			EXEC_OP(SI_OP_DIVIDE, a1/a2);
+			EXEC_OP(SI_OP_POWER, pow(a1,a2));
+			EXEC_OP(SI_OP_MODULO, i1%i2);
+			
+			/* comparison operators */
+			EXEC_OP(SI_OP_CMP_EQU, a1 == a2);
+			EXEC_OP(SI_OP_CMP_NEQU, a1 != a2);
+			EXEC_OP(SI_OP_CMP_LESS, a1 < a2);
+			EXEC_OP(SI_OP_CMP_GRTH, a1 > a2);			
+			EXEC_OP(SI_OP_CMP_GREQ, a1 <= a2);
+			EXEC_OP(SI_OP_CMP_LTEQ, a1 >= a2);
+			
+			
+			/* binrary operations */
+			EXEC_OP(SI_OP_XOR, i1 ^ i2)
+			EXEC_OP(SI_OP_AND, i1 & i2)
+			EXEC_OP(SI_OP_OR, i1 | i2)
+			EXEC_OP(SI_OP_SHIFT_LEFT, i1 << i2)
+			EXEC_OP(SI_OP_SHIFT_RIGHT, i1 >> i2)
+
+			/* unaray operators */
+			EXEC_OP(SI_OP_NEGATE, -a1)
+			EXEC_OP(SI_OP_LOW_BYTE, i1 & 0xFF);
+			EXEC_OP(SI_OP_HIGH_BYTE, (i1>>8) & 0xFF);
       }
     }
   }
