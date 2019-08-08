@@ -211,7 +211,7 @@ typedef struct {
 
 enum {
 	/* internal operators */
-	SI_OP_UNIPLUS = 22,
+	SI_OP_UNIPLUS = 23,
 	
 	SI_OP_PLUS_PAIR,
 	SI_OP_MINUS_PAIR,
@@ -219,6 +219,7 @@ enum {
 	
 	SI_OP_DOT,
 	SI_OP_INVALID,
+	SI_OP_TERNARY2,
 	
 	/* value or string */
 	SI_OP_DOLLAR, SI_OP_DECIMAL,
@@ -238,6 +239,13 @@ int op_presidence(int code)
 	case SI_OP_PLUS:
 	case SI_OP_MINUS:
 		return 2;
+		
+	case SI_OP_TERNARY:
+	case SI_OP_TERNARY2:
+		/* right to left */
+		if(code < 0) return 200-1;
+		return 200;
+		
 	case SI_OP_RIGHT: return 244;
 	case SI_OP_LEFT: return 255;
 	default: return 1;
@@ -277,6 +285,18 @@ op_table opList[] = {
 	{"%", -SI_OP_BREAK        ,SI_OP_PERCENT},
 	{"\'", -SI_OP_BREAK        ,SI_OP_CHAR},
 	{"\"", -SI_OP_BREAK        ,SI_OP_STRVAL},
+	
+	{":", SI_OP_TERNARY        ,-SI_OP_INVALID},
+	{"?", SI_OP_TERNARY2        ,-SI_OP_INVALID},
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	
 #ifdef HAS_OPHINT
 	{".", -SI_OP_DOT         ,-SI_OP_INVALID},
@@ -355,7 +375,7 @@ int stack_calculate(char *in, int *value) {
 		in = opi.in;
 		
 		
-		printf("op: %d\n", opi.code);
+		/*printf("op: %d\n", opi.code);*/
 		
 		switch(opi.code)
 		{
@@ -383,6 +403,7 @@ int stack_calculate(char *in, int *value) {
 		case SI_OP_CMP_LTEQ: case SI_OP_CMP_GREQ:
 
 		/* simple operators */
+		case SI_OP_TERNARY: case SI_OP_TERNARY2:
 		case SI_OP_PLUS: case SI_OP_MINUS: case SI_OP_MULTIPLY:
 		case SI_OP_DIVIDE: case SI_OP_OR: case SI_OP_AND:
 		case SI_OP_POWER: case SI_OP_MODULO: case SI_OP_XOR:
@@ -421,8 +442,8 @@ int stack_calculate(char *in, int *value) {
 			for (k = 0; k < 63; k++, in++) {
 				if((is_end_token(*in))||is_operand_hint(in)) 
 					break; else si[q].string[k] = *in; }
-			si[q].type = STACK_ITEM_TYPE_STRING; q++;
-			break;
+			si[q].type = STACK_ITEM_TYPE_STRING;
+			si[q].string[k] = 0; q++; break;
 			
 		default:;
 			stack_error("invalid use of operator (%c)\n", *in);
@@ -781,7 +802,7 @@ int compute_stack(struct stack *sta, int x, double *result) {
 
   s = sta->stack;
   for (r = 0, t = -1; r < x; r++, s++) {
-	printf("%d, %d\n", s->type, (int)s->value);
+	/*printf("%d, %d\n", s->type, (int)s->value);*/
 	
 	
     if (s->type == STACK_ITEM_TYPE_VALUE) {
@@ -791,8 +812,8 @@ int compute_stack(struct stack *sta, int x, double *result) {
 		
     else {
 		
-			
 			int code = (int)s->value;
+
 			if(v[t].type != 0) {
 			
 				/* fetch string args */
@@ -819,6 +840,10 @@ int compute_stack(struct stack *sta, int x, double *result) {
 				
 			} else {
 			
+				/* ternary operator */
+				if(code == SI_OP_TERNARY) { t--; t--;
+					v[t] = v[t].v.f ? v[t+1] : v[t+2]; 
+					continue; }
 			
 				/* fetch number args */
 				a2 = v[t].v.f;

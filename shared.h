@@ -52,6 +52,8 @@
 #define SI_OP_CMP_GRTH    19
 #define SI_OP_CMP_GREQ    20
 #define SI_OP_CMP_LTEQ    21
+#define SI_OP_TERNARY     22
+
 
 #define SI_SIGN_POSITIVE 0
 #define SI_SIGN_NEGATIVE 1
