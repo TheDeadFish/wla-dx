@@ -178,6 +178,7 @@ int input_number(void) {
   if (isNewLn(e))
     return INPUT_NUMBER_EOL;
 		
+#if 0
   if (e == '"') {
     for (k = 0; k < MAX_NAME_LENGTH; ) {
       e = buffer[i++];
@@ -238,7 +239,8 @@ int input_number(void) {
     
     return INPUT_NUMBER_STRING;
   }
-		
+#endif
+
 		
 	/* parse the number */
 	p = stack_calculate(&buffer[i - 1], &d);

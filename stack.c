@@ -143,6 +143,8 @@ static int _break_before_value_or_string(int i, struct stack_item *si) {
     return SUCCEEDED;
   if (si->type == STACK_ITEM_TYPE_STRING)
     return SUCCEEDED;
+  if (si->type == STACK_ITEM_TYPE_STRVAL)
+    return SUCCEEDED;
   if (si->type == STACK_ITEM_TYPE_OPERATOR && si->value == SI_OP_RIGHT)
     return SUCCEEDED;
 
@@ -180,7 +182,7 @@ char* stack_parseDec(double* value, char* in)
 		if(isalpha(in[k])) return stack_parseNum(value, in, 16);
 		if(in[k] == '.') {
 			if(isdigit(in[k+1]) && parse_floats)
-				return stack_parseNum(value, in, -1); }
+				return stack_parseNum(value, in, 0); }
 		return stack_parseNum(value, in, 10);
 	}
 }
@@ -221,7 +223,7 @@ enum {
 	/* value or string */
 	SI_OP_DOLLAR, SI_OP_DECIMAL,
 	SI_OP_PERCENT, SI_OP_CHAR,
-	SI_OP_STRING
+	SI_OP_STRING, SI_OP_STRVAL
 };
 
 int op_presidence(int code)
@@ -274,6 +276,7 @@ op_table opList[] = {
 	{"$", -SI_OP_BREAK        ,SI_OP_DOLLAR},
 	{"%", -SI_OP_BREAK        ,SI_OP_PERCENT},
 	{"\'", -SI_OP_BREAK        ,SI_OP_CHAR},
+	{"\"", -SI_OP_BREAK        ,SI_OP_STRVAL},
 	
 #ifdef HAS_OPHINT
 	{".", -SI_OP_DOT         ,-SI_OP_INVALID},
@@ -404,6 +407,16 @@ int stack_calculate(char *in, int *value) {
 		case SI_OP_CHAR:
 			STACK_VALUE_ITEM(stack_parseChar(&si[q].value, in));
 			
+		case SI_OP_STRVAL:
+			for (k = 0; (e = *in++) != '"'; k++) {
+				if(isNewLn(e)) { num_error("String wasn't "
+					"terminated properly.\n"); return FAILED; }
+				if(k >= MAX_NAME_LENGTH) { num_error("The string is too long "
+					"(max %d characters allowed).\n", MAX_NAME_LENGTH); return FAILED; }
+				if (e == '\\' && *in == '"') { e = *in++; } si[q].string[k] = e; }
+			si[q].type = STACK_ITEM_TYPE_STRVAL;
+			si[q].string[k] = 0; q++; break;
+
 		case SI_OP_STRING:
 			for (k = 0; k < 63; k++, in++) {
 				if((is_end_token(*in))||is_operand_hint(in)) 
@@ -443,6 +456,7 @@ LOOP_BREAK:
   }
 #endif
 
+#if 0
   /* calculate all X.length strings */
   for (k = 0; k < q; k++) {
     if (si[k].type == STACK_ITEM_TYPE_STRING) {
@@ -466,12 +480,7 @@ LOOP_BREAK:
       }
     }
   }
-  
-  /* check if the computation is of the form "+-..." and remove that leading "+" */
-  if (q > 2 && si[0].type == STACK_ITEM_TYPE_OPERATOR && si[0].value == SI_OP_PLUS &&
-      si[1].type == STACK_ITEM_TYPE_OPERATOR && si[1].value == SI_OP_MINUS) {
-    si[0].type = STACK_ITEM_TYPE_DELETED;
-  }
+#endif
 
   /* update the source pointer */
   i = (int)(in - buffer);
@@ -484,7 +493,9 @@ LOOP_BREAK:
       ta[d].value = si[k].value;
       d++;
     }
-    else if (si[k].type == STACK_ITEM_TYPE_STRING) {
+    else if ((si[k].type == STACK_ITEM_TYPE_STRING)
+			|| (si[k].type == STACK_ITEM_TYPE_STRVAL)) 
+		{
       ta[d].type = si[k].type;
       strcpy(ta[d].string, si[k].string);
       d++;
@@ -745,19 +756,27 @@ int op_nArgs(int x)
 }
 
 
-#define EXEC_OP(op, fn) case op: v[t] = fn; break;
+#define EXEC_OP(op, fn) case op: v[t].v.f = fn; break;
+#define STRI_OP(op, fn) case op: v[t].v.f = fn; v[t].type = 0; break;
+
+struct comput_val { int type;
+	union { double f; char* s; } v;
+};
 
 
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 int compute_stack(struct stack *sta, int x, double *result) {
 
   struct stack_item *s;
-  double v[256];
+  struct comput_val v[256];
   int r, t;
 	double a1, a2;
 	int i1, i2;
+	char *s1, *s2;
+	
+	
 
-  v[0] = 0.0;
+	v[0].v.f = 0.0;
+	v[0].type = STACK_ITEM_TYPE_VALUE;
 
   s = sta->stack;
   for (r = 0, t = -1; r < x; r++, s++) {
@@ -765,48 +784,79 @@ int compute_stack(struct stack *sta, int x, double *result) {
 	
 	
     if (s->type == STACK_ITEM_TYPE_VALUE) {
-			t++; v[t] = s->value;
-      
-    }
+			t++; v[t].type = 0; v[t].v.f = s->value; }
+		else if(s->type == STACK_ITEM_TYPE_STRVAL) {
+			t++; v[t].type = 1; v[t].v.s = s->string; }
+		
     else {
+		
 			
-			/* fetch arguments */
 			int code = (int)s->value;
-			if(op_nArgs(code) > 1) { a2 = v[t]; t--; }
-			a1 = v[t]; i1 = a1; i2 = a2;
+			if(v[t].type != 0) {
 			
-			/* execute operand */
-      switch (code) {
+				/* fetch string args */
+				s2 = v[t].v.s;
+				if(op_nArgs(code) > 1) { t--;
+					if(v[t].type == 0) { stack_error(
+						"invalid operand type\n"); return FAILED; }}
+				s1 = v[t].v.s;
+				
+				switch(code) {
+				
+				/* string comparison */
+				STRI_OP(SI_OP_CMP_EQU, strcmp(s1, s2)==0);
+				STRI_OP(SI_OP_CMP_NEQU, strcmp(s1, s2)!=0);
+				STRI_OP(SI_OP_CMP_LESS, strcmp(s1, s2)<0);
+				STRI_OP(SI_OP_CMP_GRTH, strcmp(s1, s2)>0);			
+				STRI_OP(SI_OP_CMP_GREQ, strcmp(s1, s2)<=0);
+				STRI_OP(SI_OP_CMP_LTEQ, strcmp(s1, s2)>=0);
+				
+				default:
+					stack_error("invalid operand type\n"); 
+					return FAILED;
+				}
+				
+			} else {
 			
-			/* arithmetic operators */
-			EXEC_OP(SI_OP_PLUS, a1+a2);
-			EXEC_OP(SI_OP_MINUS, a1+a2);
-			EXEC_OP(SI_OP_MULTIPLY, a1*a2);
-			EXEC_OP(SI_OP_DIVIDE, a1/a2);
-			EXEC_OP(SI_OP_POWER, pow(a1,a2));
-			EXEC_OP(SI_OP_MODULO, i1%i2);
 			
-			/* comparison operators */
-			EXEC_OP(SI_OP_CMP_EQU, a1 == a2);
-			EXEC_OP(SI_OP_CMP_NEQU, a1 != a2);
-			EXEC_OP(SI_OP_CMP_LESS, a1 < a2);
-			EXEC_OP(SI_OP_CMP_GRTH, a1 > a2);			
-			EXEC_OP(SI_OP_CMP_GREQ, a1 <= a2);
-			EXEC_OP(SI_OP_CMP_LTEQ, a1 >= a2);
-			
-			
-			/* binrary operations */
-			EXEC_OP(SI_OP_XOR, i1 ^ i2)
-			EXEC_OP(SI_OP_AND, i1 & i2)
-			EXEC_OP(SI_OP_OR, i1 | i2)
-			EXEC_OP(SI_OP_SHIFT_LEFT, i1 << i2)
-			EXEC_OP(SI_OP_SHIFT_RIGHT, i1 >> i2)
+				/* fetch number args */
+				a2 = v[t].v.f;
+				if(op_nArgs(code) > 1) { t--;
+					if(v[t].type != 0) { stack_error(
+						"invalid operand type\n"); return FAILED; }}
+				a1 = v[t].v.f; i1 = a1; i2 = a2;
+				
+				switch (code) {
+				
+				/* arithmetic operators */
+				EXEC_OP(SI_OP_PLUS, a1+a2);
+				EXEC_OP(SI_OP_MINUS, a1+a2);
+				EXEC_OP(SI_OP_MULTIPLY, a1*a2);
+				EXEC_OP(SI_OP_DIVIDE, a1/a2);
+				EXEC_OP(SI_OP_POWER, pow(a1,a2));
+				EXEC_OP(SI_OP_MODULO, i1%i2);
+				
+				/* comparison operators */
+				EXEC_OP(SI_OP_CMP_EQU, a1 == a2);
+				EXEC_OP(SI_OP_CMP_NEQU, a1 != a2);
+				EXEC_OP(SI_OP_CMP_LESS, a1 < a2);
+				EXEC_OP(SI_OP_CMP_GRTH, a1 > a2);			
+				EXEC_OP(SI_OP_CMP_GREQ, a1 <= a2);
+				EXEC_OP(SI_OP_CMP_LTEQ, a1 >= a2);
+				
+				/* binrary operations */
+				EXEC_OP(SI_OP_XOR, i1 ^ i2)
+				EXEC_OP(SI_OP_AND, i1 & i2)
+				EXEC_OP(SI_OP_OR, i1 | i2)
+				EXEC_OP(SI_OP_SHIFT_LEFT, i1 << i2)
+				EXEC_OP(SI_OP_SHIFT_RIGHT, i1 >> i2)
 
-			/* unaray operators */
-			EXEC_OP(SI_OP_NEGATE, -a1)
-			EXEC_OP(SI_OP_LOW_BYTE, i1 & 0xFF);
-			EXEC_OP(SI_OP_HIGH_BYTE, (i1>>8) & 0xFF);
-      }
+				/* unaray operators */
+				EXEC_OP(SI_OP_NEGATE, -a1)
+				EXEC_OP(SI_OP_LOW_BYTE, i1 & 0xFF);
+				EXEC_OP(SI_OP_HIGH_BYTE, (i1>>8) & 0xFF);
+				}		
+			}
     }
   }
 
@@ -824,7 +874,7 @@ int compute_stack(struct stack *sta, int x, double *result) {
 #endif
   */
 
-  *result = v[0];
+  *result = v[0].v.f;
 
   return SUCCEEDED;
 }

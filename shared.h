@@ -28,6 +28,7 @@
 #define STACK_ITEM_TYPE_STRING   2
 #define STACK_ITEM_TYPE_DELETED  3
 #define STACK_ITEM_TYPE_STACK    4
+#define STACK_ITEM_TYPE_STRVAL   5
 
 #define SI_OP_PLUS         0
 #define SI_OP_MINUS        1
