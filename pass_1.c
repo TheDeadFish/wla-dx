@@ -8555,68 +8555,14 @@ int parse_if_directive(void) {
 
   if (strcaselesscmp(cp, "IF") == 0) {
 
-    char k[256];
-    int y, o, s;
-
     q = input_number();
-    if (q != SUCCEEDED && q != INPUT_NUMBER_STRING) {
+    if (q != SUCCEEDED && q != INPUT_NUMBER_FLOAT) {
       sprintf(emsg, ".IF needs immediate data.\n");
       print_error(emsg, ERROR_INP);
       return FAILED;
     }
-
-    strncpy(k, label, 255);
-    k[255] = 0;
-    y = d;
-    s = q;
-
-    if (get_next_token() == FAILED)
-      return FAILED;
-
-    if (strcmp(tmp, "<") == 0)
-      o = 0;
-    else if (strcmp(tmp, ">") == 0)
-      o = 1;
-    else if (strcmp(tmp, "==") == 0)
-      o = 2;
-    else if (strcmp(tmp, "!=") == 0)
-      o = 3;
-    else if (strcmp(tmp, ">=") == 0)
-      o = 4;
-    else if (strcmp(tmp, "<=") == 0)
-      o = 5;
-    else {
-      print_error(".IF needs an operator. Supported operators are '<', '>', '>=', '<=', '!=' and '=='.\n", ERROR_INP);
-      return FAILED;
-    }
-
-    q = input_number();
-    if (q != SUCCEEDED && q != INPUT_NUMBER_STRING) {
-      sprintf(emsg, ".IF needs immediate data.\n");
-      print_error(emsg, ERROR_INP);
-      return FAILED;
-    }
-
-    /* different types? */
-    if (s != q) {
-      print_error("Cannot compare strings with immediate values.\n", ERROR_INP);
-      return FAILED;
-    }
-
-    /* values? */
-    if (s == SUCCEEDED) {
-      if ((o == 0 && y < d) || (o == 1 && y > d) || (o == 2 && y == d) || (o == 3 && y != d) || (o == 4 && y >= d) || (o == 5 && y <= d))
-        q = SUCCEEDED;
-      else
-        q = FAILED;
-    }
-    /* strings? */
-    else {
-      if ((o == 0 && strcmp(k, label) < 0) || (o == 1 && strcmp(k, label) > 0) || (o == 2 && strcmp(k, label) == 0) || (o == 3 && strcmp(k, label) != 0) || (o == 4 && strcmp(k, label) >= 0) || (o == 5 && strcmp(k, label) <= 0))
-        q = SUCCEEDED;
-      else
-        q = FAILED;
-    }
+		
+		q = parsed_double != 0;
 
     if (q == SUCCEEDED) {
       ifdef++;

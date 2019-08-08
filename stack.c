@@ -531,8 +531,9 @@ LOOP_BREAK:
     s.linenumber = active_file_info_last->line_current;
     s.filename_id = active_file_info_last->filename_id;
 
-    if (compute_stack(&s, d, &dou) == FAILED)
-      return FAILED;
+		d = compute_stack(&s, d, &dou);
+		if((d == FAILED)||(d == INPUT_NUMBER_STRING))
+			return d;
     
     parsed_double = dou;
 
@@ -708,8 +709,8 @@ int resolve_stack(struct stack_item s[], int x) {
         hashmap_get(defines_map, s->string, (void*)&tmp_def);
         if (tmp_def != NULL) {
           if (tmp_def->type == DEFINITION_TYPE_STRING) {
-						stack_error("Definition \"%s\" is a string definition.\n", tmp_def->alias);
-            return FAILED;
+						strcpy(s->string, tmp_def->string);
+						s->type = STACK_ITEM_TYPE_STRVAL;
           }
           else if (tmp_def->type == DEFINITION_TYPE_STACK) {
 	    /* skip stack definitions -> use its name instead, thus do nothing here */
@@ -873,6 +874,12 @@ int compute_stack(struct stack *sta, int x, double *result) {
   }
 #endif
   */
+	
+	
+	if(v[0].type) {
+		strcpy(label, v[0].v.s); 
+		string_size = strlen(label);
+		return INPUT_NUMBER_STRING; }
 
   *result = v[0].v.f;
 
