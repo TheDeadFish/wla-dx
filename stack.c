@@ -19,7 +19,7 @@ int is_end_token(char e) {
 	return e == ' ' || e == ')' || e == '|' || e == '&' || e == '+' 
 		|| e == '-' || e == '*' || e == '/' || e == ',' || e == '^' || e == '<' 
 		|| e == '>' || e == '#' || e == '~' || e == ']' || e == '=' || e == '!'
-		|| isNewLn(e);
+		|| e == '?' || e == ':' || isNewLn(e);
 }
 
 extern int input_number_error_msg, bankheader_status, input_float_mode;
@@ -286,7 +286,7 @@ op_table opList[] = {
 	{"\'", -SI_OP_BREAK        ,SI_OP_CHAR},
 	{"\"", -SI_OP_BREAK        ,SI_OP_STRVAL},
 	
-	{":", SI_OP_TERNARY        ,-SI_OP_INVALID},
+	{":", SI_OP_TERNARY        ,-SI_OP_STRING},
 	{"?", SI_OP_TERNARY2        ,-SI_OP_INVALID},
 	
 	
@@ -813,6 +813,13 @@ int compute_stack(struct stack *sta, int x, double *result) {
     else {
 		
 			int code = (int)s->value;
+			
+			/* ternary operator */
+			if(code == SI_OP_TERNARY) { t--; t--;
+				if(v[t].type != 0) { stack_error(
+					"invalid operand type\n"); return FAILED; }
+				v[t] = v[t].v.f ? v[t+1] : v[t+2]; 
+				continue; }
 
 			if(v[t].type != 0) {
 			
@@ -839,11 +846,6 @@ int compute_stack(struct stack *sta, int x, double *result) {
 				}
 				
 			} else {
-			
-				/* ternary operator */
-				if(code == SI_OP_TERNARY) { t--; t--;
-					v[t] = v[t].v.f ? v[t+1] : v[t+2]; 
-					continue; }
 			
 				/* fetch number args */
 				a2 = v[t].v.f;

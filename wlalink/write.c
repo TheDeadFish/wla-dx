@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "defines.h"
 #include "memory.h"
@@ -1590,13 +1591,27 @@ struct stack *find_stack(int id, int file_id) {
 }
 
 
+#define EXEC_OP(op, fn) case op: v[t] = fn; break;
+
+static	
+int op_nArgs(int x) 
+{
+	switch(x) {
+	case SI_OP_LOW_BYTE:
+	case SI_OP_HIGH_BYTE:
+	case SI_OP_NEGATE: return 1;
+	default: return 2;
+	}
+}
+
+
 int compute_stack(struct stack *sta, int *result) {
 
   struct stack_item *s;
   struct stack *st;
-  int r, t, z, x, res;
-  double v[256], q;
-
+  int r, t, x, res;
+  double v[256];
+	double a1,a2; int i1,i2;
 
   if (sta->under_work == YES) {
     fprintf(stderr, "%s: %s:%d: COMPUTE_STACK: A loop found in computation.\n", get_file_name(sta->file_id),
@@ -1630,14 +1645,9 @@ int compute_stack(struct stack *sta, int *result) {
 
   x = sta->stacksize;
   s = sta->stack;
-  for (r = 0, t = 0; r < x; r++, s++) {
+  for (r = 0, t = -1; r < x; r++, s++) {
     if (s->type == STACK_ITEM_TYPE_VALUE) {
-      if (s->sign == SI_SIGN_NEGATIVE)
-	v[t] = -s->value;
-      else
-	v[t] = s->value;
-      t++;
-    }
+			t++; v[t] = s->value; }
     else if (s->type == STACK_ITEM_TYPE_STACK) {
       /* we have a stack inside a stack! find the stack */
       /* HACK! we abuse sign here... */
@@ -1651,83 +1661,54 @@ int compute_stack(struct stack *sta, int *result) {
       if (compute_stack(st, &res) == FAILED)
 	return FAILED;
 
-      v[t] = res;
-      t++;
+      t++; v[t] = res;
+      
     }
     else {
-      switch ((int)s->value) {
-      case SI_OP_PLUS:
-	v[t - 2] += v[t - 1];
-	t--;
-	break;
-      case SI_OP_MINUS:
-	v[t - 2] -= v[t - 1];
-	t--;
-	break;
-      case SI_OP_XOR:
-	/* 16-bit XOR? */
-	if (v[t - 2] > 0xFF || v[t - 2] < -128 || v[t - 1] > 0xFF || v[t - 1] < -128)
-	  v[t - 2] = ((int)v[t - 1] ^ (int)v[t - 2]) & 0xFFFF;
-	/* 8-bit XOR */
-	else
-	  v[t - 2] = ((int)v[t - 1] ^ (int)v[t - 2]) & 0xFF;
-	t--;
-	break;
-      case SI_OP_MULTIPLY:
-	v[t - 2] *= v[t - 1];
-	t--;
-	break;
-      case SI_OP_OR:
-	v[t - 2] = (int)v[t - 1] | (int)v[t - 2];
-	t--;
-	break;
-      case SI_OP_AND:
-	v[t - 2] = (int)v[t - 1] & (int)v[t - 2];
-	t--;
-	break;
-      case SI_OP_LOW_BYTE:
-	z = (int)v[t - 1];
-	v[t - 1] = z & 0xFF;
-	break;
-      case SI_OP_HIGH_BYTE:
-	z = (int)v[t - 1];
-	v[t - 1] = (z>>8) & 0xFF;
-	break;
-      case SI_OP_MODULO:
-	if (((int)v[t - 1]) == 0) {
-	  fprintf(stderr, "%s: %s:%d: COMPUTE_STACK: Modulo by zero.\n", get_file_name(sta->file_id),
-		  get_source_file_name(sta->file_id, sta->file_id_source), sta->linenumber);
-	  return FAILED;
-	}
-	v[t - 2] = (int)v[t - 2] % (int)v[t - 1];
-	t--;
-	break;
-      case SI_OP_DIVIDE:
-	if (v[t - 1] == 0.0) {
-	  fprintf(stderr, "%s: %s:%d: COMPUTE_STACK: Division by zero.\n", get_file_name(sta->file_id),
-		  get_source_file_name(sta->file_id, sta->file_id_source), sta->linenumber);
-	  return FAILED;
-	}
-	v[t - 2] /= v[t - 1];
-	t--;
-	break;
-      case SI_OP_POWER:
-	q = 1;
-	for (z = 0; z < v[t - 1]; z++)
-	  q *= v[t - 2];
-	v[t - 2] = q;
-	t--;
-	break;
-      case SI_OP_SHIFT_LEFT:
-	v[t - 2] = (int)v[t - 2] << (int)v[t - 1];
-	t--;
-	break;
-      case SI_OP_SHIFT_RIGHT:
-	v[t - 2] = (int)v[t - 2] >> (int)v[t - 1];
-	t--;
-	break;
-      }
-    }
+		
+			int code = (int)s->value;
+			
+			/* fetch number args */
+			a2 = v[t];
+			if(op_nArgs(code) > 1) t--;
+			a1 = v[t]; i1 = a1; i2 = a2;
+			
+			/* ternary operator */			
+			if(code == SI_OP_TERNARY) {	t--;
+				v[t] = v[t] ? a1 : a2;
+				continue; }
+								
+			switch (code) {
+		
+			/* arithmetic operators */
+			EXEC_OP(SI_OP_PLUS, a1+a2);
+			EXEC_OP(SI_OP_MINUS, a1+a2);
+			EXEC_OP(SI_OP_MULTIPLY, a1*a2);
+			EXEC_OP(SI_OP_DIVIDE, a1/a2);
+			EXEC_OP(SI_OP_POWER, pow(a1,a2));
+			EXEC_OP(SI_OP_MODULO, i1%i2);
+			
+			/* comparison operators */
+			EXEC_OP(SI_OP_CMP_EQU, a1 == a2);
+			EXEC_OP(SI_OP_CMP_NEQU, a1 != a2);
+			EXEC_OP(SI_OP_CMP_LESS, a1 < a2);
+			EXEC_OP(SI_OP_CMP_GRTH, a1 > a2);			
+			EXEC_OP(SI_OP_CMP_GREQ, a1 <= a2);
+			EXEC_OP(SI_OP_CMP_LTEQ, a1 >= a2);
+			
+			/* binrary operations */
+			EXEC_OP(SI_OP_XOR, i1 ^ i2)
+			EXEC_OP(SI_OP_AND, i1 & i2)
+			EXEC_OP(SI_OP_OR, i1 | i2)
+			EXEC_OP(SI_OP_SHIFT_LEFT, i1 << i2)
+			EXEC_OP(SI_OP_SHIFT_RIGHT, i1 >> i2)
+
+			/* unaray operators */
+			EXEC_OP(SI_OP_NEGATE, -a1)
+			EXEC_OP(SI_OP_LOW_BYTE, i1 & 0xFF);
+			EXEC_OP(SI_OP_HIGH_BYTE, (i1>>8) & 0xFF);
+			}		
+		}
   }
 
   *result = (int)v[0];
