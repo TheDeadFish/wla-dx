@@ -241,10 +241,11 @@ int op_presidence(int code)
 		return 2;
 		
 	case SI_OP_TERNARY:
+		return 200;	
 	case SI_OP_TERNARY2:
-		/* right to left */
 		if(code < 0) return 200-1;
-		return 200;
+		return 201;
+		
 		
 	case SI_OP_RIGHT: return 244;
 	case SI_OP_LEFT: return 255;
@@ -351,7 +352,7 @@ int stack_calculate(char *in, int *value) {
   unsigned char e;
   double dou = 0.0;
 	op_result opi;
-
+	int td;
 
   /* initialize (from Amiga's SAS/C) */
   for (k = 0; k < 256; k++) {
@@ -461,6 +462,10 @@ LOOP_BREAK:
     print_error("Unbalanced parentheses.\n", ERROR_STC);
     return FAILED;
   }
+	
+	/* append SI_OP_RIGHT to evict all operators */
+	si[q].type = STACK_ITEM_TYPE_OPERATOR;
+	si[q].value = SI_OP_RIGHT; q++;
 
 #ifdef SPC700
   /* check if the computation is of the form "y+X" or "y+Y" and remove that "+X" or "+Y" */
@@ -507,6 +512,7 @@ LOOP_BREAK:
   i = (int)(in - buffer);
 
   /* convert infix stack into postfix stack */
+	td = 0;
   for (b = 0, k = 0, d = 0; k < q; k++) {
     /* operands pass through */
     if (si[k].type == STACK_ITEM_TYPE_VALUE) {
@@ -528,23 +534,26 @@ LOOP_BREAK:
 			/* evict items from stack */
 			b--; if (value != SI_OP_LEFT) {
 				int p = op_presidence(value|INT_MIN);
-				for(;b >= 0 && op_presidence(op[b]) <= p; b--, d++) {
-					ta[d].type = STACK_ITEM_TYPE_OPERATOR; ta[d].value = op[b]; }
+				for(;b >= 0 && op_presidence(op[b]) <= p; b--) {
+				
+					/* special ternary handling */
+					if(op[b] == SI_OP_TERNARY2)  { if(--td >= 0) continue; 
+						return stack_error("mismatched ternary\n"); }
+					else if(op[b] == SI_OP_TERNARY) td++;
+				
+					ta[d].type = STACK_ITEM_TYPE_OPERATOR; 
+					ta[d].value = op[b]; d++;
+				}
 			}
 			
 			/* insert item into stack */
 			if (value != SI_OP_RIGHT) { 
 				b++; op[b] = value; b++; }
+			else if(td != 0) { return 
+				stack_error("mismatched ternary\n"); }
+				
 		}
 	}
-
-  /* empty the operator stack */
-  while (b > 0) {
-    b--;
-    ta[d].type = STACK_ITEM_TYPE_OPERATOR;
-    ta[d].value = op[b];
-    d++;
-  }
 
   /* are all the symbols known? */
   if (resolve_stack(ta, d) == SUCCEEDED) {
